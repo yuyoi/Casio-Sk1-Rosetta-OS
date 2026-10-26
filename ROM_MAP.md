@@ -38,6 +38,10 @@ WAVs of each: `rom/wav/` (gitignored, Casio audio).
 - So a sound ends at FF FF, not at a fixed length; tone records didn't cut it. Envelope/"ring-mod" colour on some presets = tone records, not decoded yet.
 - Ready next: `rom/test_count_w27c512.bin` (spoken "one two three") for a cleaner check.
 
+## LOOPS CONFIRMED ON HW (2026-10-27)
+- Sound without an FF FF marker runs to 0x7FFF, then the CPU jumps to table entry 8 (0x086C) and loops while the key is held. User heard our own crossfaded loop (Chamberlin voice) sustain.
+- One global loop: only the sound that ends at 0x7FFF loops. SK-1 Studio's loop editor sets entry 8 and places the looping slot so it ends exactly at 0x7FFF.
+
 ## Pointer scan 2026-10-26
 - Searched the whole header for 16-bit pointers (LE/BE, with and without +0x8000) to every block start.
 - **Nothing points at the demo tracks (0x08BC / 0x0908 / 0x09E8), rhythms (0x04DC), tone records (0x0178), curves, chord table or the sample table (0x085C).** Those addresses are baked into the MSM6283's internal code. The ROM has no jump/call table we could redirect.

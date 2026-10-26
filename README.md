@@ -8,6 +8,7 @@ Own sounds in the **Casio SK-1** (also sold as the Realistic Concertmate-500), t
 - a Winbond W27C512 in the ROM socket, no other mods
 - one 3.2 s sound filling the whole ROM, played at full length (the stock presets are 0.4-0.9 s)
 - 5 custom presets (guitar, voices, synth, FX) built and burned
+- **custom loop points**: a held key sustains forever on our own loop
 
 ## SK-1 Studio
 
@@ -19,7 +20,16 @@ Own sounds in the **Casio SK-1** (also sold as the Realistic Concertmate-500), t
   - an **Akai S1000/S3000 CD** image (.iso / .nrg)
 - **Pitched to the slot:** type the sample's note (A4, C#3...) and it lands in tune on the same keys as the stock sound it replaces. `own` keeps its speed (FX, chords).
 - **Reverse** any slot.
-- **Loop** one slot: it goes last, runs to the end of the ROM and gets a crossfaded loop (see below).
+- **Loop** one slot, with a waveform **loop editor** (EDIT LOOP):
+  - drag LOOP START and END on the waveform
+  - SNAP TO ZERO puts both on zero crossings
+  - set the crossfade (0-300 ms)
+  - PLAY LOOP to audition it before burning
+
+  The looping slot always ends exactly at the end of the ROM, where the SK-1 jumps back to the loop start.
+
+<p align="center"><img src="assets/loop_editor.png" width="820" alt="Loop editor"></p>
+
 - **1 long sound** mode: one ~2.9 s sound on every preset.
 - **PLAY / PREVIEW ALL:** hear the slots exactly as the SK-1 will (8-bit, 9387 Hz) before burning.
 - **SAVE** a 64 KB image for a W27C512, or 512 KB for an SST39SF040 (Hex Wizard).
@@ -67,7 +77,7 @@ A good dump has CRC32 `d615963c` (SHA1 `0dbf2d1c4c776f1a1c35dd2be4d6ca03882afd4c
   - 0x0B00-0x0FFF: the drum kit
   - 0x1000-0x7FFF: the 5 PCM presets
 - **Sounds:** 8-bit unsigned, 9387 Hz. A sound plays until an `FF FF` marker on an even address, so lengths are free.
-- **Loops:** sounds without a marker run to 0x7FFF; table entry 8 (stock 0x7EB2) looks like the loop start. **Not confirmed on hardware yet.**
+- **Loops (confirmed on hardware):** a sound without an end marker runs to 0x7FFF, and the CPU jumps back to the address in table entry 8 (stock 0x7EB2) for as long as the key is held. There's one loop for the whole ROM, so one looping preset.
 - **Slot order:** which preset button reads which table entry is a best guess from the stock sounds, not confirmed yet.
 - **Sampling:** the SK-1's own sampler stays at 1.4 s. That limit is in the CPU. A slower clock gives longer, lo-fi samples; see [CLOCK_MOD.md](CLOCK_MOD.md).
 - **Bus timing:** the sister model's service manual shows the CPU waits about 410 ns for memory data at the SK-1's clock, so any 200 ns or faster ROM/RAM is fine. See [CPU_RESEARCH.md](CPU_RESEARCH.md).

@@ -104,6 +104,43 @@ def load_source(slot, roland_dir=None):
     return y[::-1].copy() if slot.get("reverse") else y
 
 
+def capacity(n_filled, long_mode):
+    """bytes the looping slot can use: everything after the other slots' shares"""
+    room = ROM_SIZE - SOUND_START
+    if long_mode or n_filled <= 1:
+        return room
+    share = room // n_filled
+    share -= share & 1
+    return room - share * (n_filled - 1)
+
+
+def loop_points(slot, y, n):
+    """(end, start, xfade) in SK-1 samples for a looping slot: the user's points, clamped, or a default loop
+    (24 periods of the slot pitch for pitched sounds, the last quarter otherwise)"""
+    end = min(slot.get("loop_end") or n, len(y), n)
+    end -= end & 1
+    if slot.get("loop_start") is not None:
+        start = slot["loop_start"]
+    elif parse_note(slot.get("note")) is not None:
+        start = end - int(round(24 * RATE / dict((e, h) for e, h, _ in SLOTS)[slot["entry"]]))
+    else:
+        start = end - end // 4
+    start = max(1, min(start, end - 8))
+    xf = slot.get("xfade")
+    xf = (end - start) // 2 if xf is None else xf
+    return end, start, max(0, min(xf, start, end - start))
+
+
+def make_loop(y, end, start, xf):
+    """y[:end] with its last xf samples crossfaded into the audio just before the loop start, so the jump from
+    end back to start is seamless"""
+    seg = y[:end].copy()
+    if xf:
+        w = np.linspace(0, 1, xf)
+        seg[end - xf:end] = seg[end - xf:end] * (1 - w) + y[start - xf:start] * w
+    return seg
+
+
 def build_image(base, slots, roland_dir, long_mode=False, log=print):
     """-> 32 KB ROM image with the filled slots packed after the drum kit"""
     rom = bytearray(base[:ROM_SIZE])
@@ -125,14 +162,16 @@ def build_image(base, slots, roland_dir, long_mode=False, log=print):
         y = load_source(s, roland_dir)
         last = i == len(order) - 1
         if s in looped:
-            hz = dict((e, h) for e, h, _ in SLOTS)[s["entry"]] if parse_note(s.get("note")) is not None else 220.0
-            n = ROM_SIZE - a
-            if len(y) < n:  # short sound: pad with silence before the loop region rather than fail
-                y = np.concatenate([y, np.zeros(n - len(y))])
-            y, ls = rp.looped_tail(y, n, hz)
-            rom[a:] = to_pcm(0.95 * y)
-            struct.pack_into("<H", rom, TABLE + 16, a + ls)
-            log(f"    0x{a:04X}, {n / RATE:.2f} s, loops from 0x{a + ls:04X}")
+            # the CPU jumps from 0x7FFF back to table entry 8, so the sound is placed to end exactly there
+            end, ls, xf = loop_points(s, y, ROM_SIZE - a)
+            start = ROM_SIZE - end
+            rom[start:] = to_pcm(0.95 * make_loop(y, end, ls, xf))
+            struct.pack_into("<H", rom, TABLE + 16, start + ls)
+            ptr[s["entry"]] = start
+            log(f"    0x{start:04X}, {end / RATE:.2f} s, loops 0x{start + ls:04X}-0x7FFF "
+                f"({(end - ls) / RATE * 1000:.0f} ms, xfade {xf / RATE * 1000:.0f} ms)")
+            a += share
+            continue
         else:
             size = (ROM_SIZE - a if last else share) - len(END)
             size -= size & 1                     # markers sit on even addresses, like every stock one
@@ -225,6 +264,9 @@ def gui():
     v_loop = tk.IntVar(value=-1)
 
     def set_slot(i, **kw):
+        if "path" in kw:                          # new sound: its old loop points mean nothing
+            for k in ("loop_start", "loop_end", "xfade"):
+                slots[i].pop(k, None)
         slots[i].update(kw)
         v_name[i].set(slots[i].get("name", "(empty)"))
         v_note[i].set(slots[i].get("note", "") or "own")
@@ -259,8 +301,11 @@ def gui():
                      ("AKAI", lambda i: cd_picker(i, "akai")), ("PLAY", lambda i: preview(i)), ("X", clear)):
             tk.Button(bf, text=t, command=lambda f=f, i=i: f(i), **dict(btn_s, font=("Consolas", 9, "bold"))).pack(
                 side="left", padx=1)
-    tk.Radiobutton(grid, text="no loop", variable=v_loop, value=-1, **chk).grid(row=6, column=5, columnspan=2,
-                                                                                 sticky="w")
+    lf = tk.Frame(grid, bg=BG)
+    lf.grid(row=6, column=5, columnspan=2, sticky="w")
+    tk.Radiobutton(lf, text="no loop", variable=v_loop, value=-1, **chk).pack(side="left")
+    tk.Button(lf, text="EDIT LOOP", command=lambda: loop_editor(), **dict(btn_s, font=("Consolas", 9, "bold"))).pack(
+        side="left", padx=8)
     grid.columnconfigure(2, weight=1)
 
     opt = tk.Frame(root, bg=BG)
@@ -453,6 +498,140 @@ def gui():
         v_f.trace_add("write", refilter)
         names.bind("<Double-Button-1>", choose)
         tk.Button(right, text="USE THIS SAMPLE", command=choose, **btn_s).pack(fill="x")
+
+    def loop_editor():
+        i = v_loop.get()
+        if i < 0:
+            log("pick the loop slot first (loop column)")
+            return
+        try:
+            s = current()[i]
+        except ValueError as ex:
+            log(f"ERROR: {ex}")
+            return
+        if not s.get("src"):
+            log(f"slot {i + 1} is empty")
+            return
+        long_mode = v_long.get()
+        n = capacity(1 if long_mode else sum(1 for x in slots if x.get("src")), long_mode)
+        log(f"loading slot {i + 1} for the loop editor...")
+
+        def job():
+            y = load_source(s)
+            q.put(lambda: open_loop_window(i, s, y, n))
+        worker(job)
+
+    def open_loop_window(i, s, y, n):
+        end, start, xf = loop_points(s, y, n)
+        st = {"end": end, "start": start, "drag": None}
+        total = min(len(y), n)                    # the editor shows what fits in the slot
+        w = tk.Toplevel(root)
+        w.title(f"Loop: slot {i + 1}  {s['name']}")
+        w.configure(bg=BG)
+        W, H = 1100, 240
+        cv = tk.Canvas(w, width=W, height=H, bg=PANEL, highlightthickness=0)
+        cv.pack(padx=10, pady=(10, 4))
+        v_info = tk.StringVar()
+        tk.Label(w, textvariable=v_info, bg=BG, fg=TXT, font=("Consolas", 10)).pack(anchor="w", padx=10)
+        v_xf = tk.DoubleVar(value=round(xf / RATE * 1000))
+        row_ = tk.Frame(w, bg=BG)
+        row_.pack(fill="x", padx=10, pady=6)
+        tk.Label(row_, text="crossfade ms", **lab).pack(side="left")
+        tk.Scale(row_, variable=v_xf, from_=0, to=300, orient="horizontal", length=300, bg=BG, fg=GREEN,
+                 troughcolor=PANEL, highlightthickness=0, command=lambda _: draw()).pack(side="left", padx=6)
+
+        cols = np.linspace(0, total, W + 1).astype(int)
+        lo = [float(y[a:b].min()) if b > a else 0.0 for a, b in zip(cols[:-1], cols[1:])]
+        hi = [float(y[a:b].max()) if b > a else 0.0 for a, b in zip(cols[:-1], cols[1:])]
+
+        def x_of(k):
+            return k * W / total
+
+        def k_of(x):
+            return int(max(0, min(total, x * total / W)))
+
+        def xfade():
+            return min(int(v_xf.get() * RATE / 1000), st["start"], st["end"] - st["start"])
+
+        def draw():
+            cv.delete("all")
+            cv.create_rectangle(x_of(st["start"]), 0, x_of(st["end"]), H, fill="#123024", width=0)
+            xs = x_of(st["end"] - xfade())
+            cv.create_rectangle(xs, 0, x_of(st["end"]), H, fill="#173a52", width=0)
+            xe = x_of(st["end"])
+            for x in range(W):                    # past END is cut off in the ROM: drawn dim
+                cv.create_line(x, H / 2 - hi[x] * H * 0.45, x, H / 2 - lo[x] * H * 0.45 + 1,
+                               fill=GREEN if x <= xe else DIM)
+            for k, col, t in ((st["start"], GREEN, "LOOP START"), (st["end"], BLUE, "END")):
+                cv.create_line(x_of(k), 0, x_of(k), H, fill=col, width=2)
+                cv.create_text(x_of(k) + (4 if t != "END" else -4), 10, text=t, fill=col,
+                               anchor="w" if t != "END" else "e", font=("Consolas", 9, "bold"))
+            ln = st["end"] - st["start"]
+            v_info.set(f"start {st['start'] / RATE:.3f} s   end {st['end'] / RATE:.3f} s   loop {ln / RATE * 1000:.0f} ms"
+                       f" ({ln} samples)   slot holds {n / RATE:.2f} s")
+
+        def press(e):
+            k = k_of(e.x)
+            st["drag"] = "start" if abs(k - st["start"]) < abs(k - st["end"]) else "end"
+            motion(e)
+
+        def motion(e):
+            k = k_of(e.x)
+            if st["drag"] == "start":
+                st["start"] = max(1, min(k, st["end"] - 8))
+            elif st["drag"] == "end":
+                st["end"] = max(st["start"] + 8, min(k, total))
+            draw()
+
+        def snap():
+            """both points onto rising zero crossings: the cheapest way to a click-free loop"""
+            def near(k):
+                best = k
+                for d in range(0, 400):
+                    for c in (k - d, k + d):
+                        if 1 <= c < len(y) and y[c - 1] < 0 <= y[c]:
+                            return c
+                return best
+            st["start"] = near(st["start"])
+            st["end"] = min(near(st["end"]), total)
+            draw()
+
+        def audition():
+            end_, start_, xf_ = st["end"] - (st["end"] & 1), st["start"], xfade()
+            seg = make_loop(y, end_, start_, xf_)
+            reps = max(1, int(3.0 * RATE / max(1, end_ - start_)))
+            out = np.concatenate([seg] + [seg[start_:end_]] * reps)
+            path = os.path.join(tempfile.gettempdir(), "sk1studio_loop.wav")
+            with wave.open(path, "wb") as f:
+                f.setnchannels(1)
+                f.setsampwidth(1)
+                f.setframerate(RATE)
+                f.writeframes(to_pcm(0.95 * out))
+            play(path)
+
+        def reset():
+            st["end"], st["start"], x = loop_points({k: v for k, v in s.items()
+                                                     if k not in ("loop_start", "loop_end", "xfade")}, y, n)
+            v_xf.set(round(x / RATE * 1000))
+            draw()
+
+        def ok():
+            slots[i].update(loop_start=st["start"], loop_end=st["end"], xfade=xfade())
+            log(f"slot {i + 1} loop: {st['start'] / RATE:.3f}-{st['end'] / RATE:.3f} s, "
+                f"crossfade {xfade() / RATE * 1000:.0f} ms")
+            w.destroy()
+        cv.bind("<Button-1>", press)
+        cv.bind("<B1-Motion>", motion)
+        cv.bind("<ButtonRelease-1>", lambda e: st.update(drag=None))
+        bf = tk.Frame(w, bg=BG)
+        bf.pack(pady=(0, 10))
+        for t, f in (("SNAP TO ZERO", snap), ("PLAY LOOP", audition), ("RESET", reset), ("OK", ok)):
+            b = tk.Button(bf, text=t, command=f, height=2, **btn_s)
+            if t == "OK":
+                b.config(fg=BG, bg=GREEN, activebackground=BLUE)
+            b.pack(side="left", padx=4)
+        w._loop = dict(st=st, snap=snap, audition=audition, ok=ok, draw=draw, v_xf=v_xf)  # for scripted tests
+        draw()
 
     root.protocol("WM_DELETE_WINDOW", lambda: (save_cfg(), root.destroy()))
     root._studio = dict(slots=slots, set_slot=set_slot, v_base=v_base, v_roland=v_roland, v_akai=v_akai, v_loop=v_loop,
