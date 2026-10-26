@@ -21,8 +21,8 @@ from sk1rom import RATE, TABLE, ROM_SIZE, END, fit, load_wav, to_pcm
 # The source note comes from the sample's name (autocorrelation locks onto overtones on these).
 # The None-size one goes last and loops.
 PICKS = {
-    0: ("roland", "LCDP02 Guitar and Bass.iso", "GTR:Strat F_4", 65, 447.0, 5120),
-    2: ("wav", "pad", "054_Best_Service_ProSamples__CRYSTAL_ICE_49H_FX12_L.wav", None, None, 4608),
+    0: ("roland", "LCDP02 Guitar and Bass.iso", "GTR:OD CHRD 1", None, None, 5120),
+    2: ("wav", "dark", "096_Distorted_Reality_2_Dark_09_SCI_FI_3_CRYPTIC_L.wav", None, None, 4608),
     3: ("wav", "synth", "141_Ethereal_Atmospheres_06_POLYSYNTH_POLYSYNTC3_L.wav", 48, 144.0, 5632),
     4: ("roland", "Roland L-CDX-02 Keyboard Instruments.iso", "VOX:TrnChrA_4", 69, 447.0, 6144),
     1: ("roland", "Roland L-CDX-02 Keyboard Instruments.iso", "VOX:Chb Ml A_3L", 57, 224.0, None),
