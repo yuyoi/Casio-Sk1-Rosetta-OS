@@ -54,11 +54,20 @@ WAVs of each: `rom/wav/` (gitignored, Casio audio).
 - Loop theory: sounds without a marker run to 0x7FFF and the CPU jumps to table entry 8 (stock 0x7EB2). Probe 1 tests this.
 - Harmonic levels for flute/organs: not found in the ROM yet (may be inside the CPU).
 
+## Tone records = 16 x 24 B at 0x0178 (decode pass 3)
+- Exact 24-byte grid 0x0178 + 0x18*k, k = 0..15, FF-padded → **indexable by one nibble**.
+- Two kinds: `F1 FF ...` (13 records) and `01 xx ...` (records 3, 4, 10). Records 11-15 are short (`F1 FF FF 00 ...`), and 12/13/14 differ in one byte only (02 / 08 / 01).
+- Most end with `00 00` and a tail `08 10 xx ..` → probably the release part.
+- **0x3EC envelopes:** the first byte's nibbles are always 7-B (high) and 3-6 (low) → likely record indexes: envelope = record A + record B.
+- **0x060 presets:** the third byte's high nibble is A/B/C/E → likely a record index too.
+
 ## Probes
 - `probe12_w27c512.bin`, lower half (pin 1 GND) = **probe 1**: entries 0-4 say one..five, drums stock, "five" runs into a saw to 0x7FFF with the loop start at 0x7E00 → hold the key: endless buzz = loops work.
 - Upper half (pin 1 5V) = **probe 2** = probe 1 plus:
   - 0x060: all 8 preset groups = group 0. Do all presets now behave alike (envelope / vibrato / octave)?
   - 0x3EC: all 13 envelopes = envelope 4. Sample something, then step Envelope Select: does every setting sound the same?
+- `probe34_w27c512.bin`, lower half = **probe 3**: probe 1 with all 16 tone records = record 3. Does everything (presets, organs, sample envelopes) get the same envelope?
+- Upper half = **probe 4**: probe 1 with both envelope curves made linear. Do fades sound more even / less "plucky"?
 
 ## Space
 - ROM is full. Cutting demo song + rhythms only frees ~1.3 KB = 0.14 s of sound.
