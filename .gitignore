@@ -1,0 +1,5 @@
+# Casio copyright: keep dumps and manuals local
+rom/
+docs/
+*.bin
+*.pdf
