@@ -15,6 +15,21 @@
 - No test mode is documented anywhere in the SK-1 service manual.
 - The SK-5 service manual exists (soundprogramming.net `/manuals/keyboard/Casio_SK-5_ServiceManual.pdf`), but a script download redirects to the homepage. Grab it from a browser. It may document the pins the SK-1 manual hides.
 
+## SK-5 service manual (docs/casio_sk-5_sm.pdf, user-supplied, read 2026-10-26)
+- CPU = **MSM6283-05GS**, clock **7.277 MHz**. Pin functions differ from the -01: the mask also sets pin roles (SK-5: pin 30 = memory /OE, pin 19 unused; SK-1: pin 19 = /OE, pin 30 = A15).
+- SK-5 extras on the "hidden" SK-1 pins: CE1 (39) percussion chip MSM6294-02 write, CE2 (41) ROM pack select, CP1/CP2 (46/47) ROM pack clock, OP (48) demo ROM address/data switch, D0-D7 (49-56) aux bus to the percussion chip + demo music ROM MSM5268, MI (59) power-on detect, KO13 (63) ROM/RAM chip select, KO12 (64) APO, PO0 (85) percussion reset.
+- **Pin 42 is "No function" in the SK-5 manual too**: TEST stays undocumented. No test mode in the SK-5 troubleshooting either.
+- **The SK-5 uses ONE 32 KB SRAM (µPD43256C-12L, 120 ns), battery-backed** ("kept even power switch OFF as long as DC 7.5 V is provided"), selected by A15 = L. So this CPU family drives plain SRAM fine (no refresh needed), and the -05 program uses about 26 KB of it for 4 x 0.7 s samples. The SK-1's -01 program is hard-limited to its 13.5 KB.
+- **Bus timing chart (p17):** each memory cycle is about 8t (t = 1/f_osc).
+  - /CE goes low at 2t and stays low 4t; /OE goes low at 3t; data is latched about 3t after /CE and 2t after /OE.
+  - A refresh pulse rides on every cycle ("+ pulse refresh").
+  - At the SK-1's 7.24 MHz (t = 138 ns): **about 410 ns from /CE to data latch, about 275 ns from /OE**, if the -01 matches the -05.
+  - **Consequences:**
+    - The 200 ns ROM/RAM had about 2x margin, so memory isn't the overclock limit until about 2x clock.
+    - A ROM emulator gets about 3.5x margin against 115 ns.
+    - DRAM refresh happens every bus cycle, so slow clocks don't starve refresh (CLOCK_MOD.md's refresh worry is mostly void).
+- Casio again says the ROM holds "preset tone, percussion data, and system execution program". Same wording as the SK-1 manual; the pointer and code analysis still says data/bytecode.
+
 ## In-circuit dump routes (no chip removal)
 | Route | Risk | Odds | Notes |
 |---|---|---|---|

@@ -19,7 +19,7 @@ Recording and playback both scale with the clock. A sample recorded at clock X a
 | 10.9 MHz | 1.5 | 14.1 kHz | 0.96 s | to test, CPU limit unknown |
 
 ## Limits
-- **Too slow:** the D4168 RAMs are dynamic and need a refresh every 2 ms (manual p11), and refresh comes off this clock. ÷4 still works in practice (Jonas), so real retention is well above spec, but warm units may lose a held sample. **6264 SRAM swap removes this** (pin-compatible, see CONTEXT.md).
+- **Too slow:** the D4168 RAMs are dynamic and need a refresh every 2 ms (manual p11). **Update from the SK-5 timing chart:** a refresh pulse rides on every bus cycle (about 1 µs each), so even ÷10 stays far inside 2 ms. Not a real limit. The 6264 swap is optional.
 - **Too fast:**
   - Memory: the stock ROM and RAM are 200 ns parts. The W27C512 is much faster already; 6264-70 SRAMs fix the RAM.
   - CPU: the MSM6283's own max speed is unknown, and nobody has published an SK-1 overclock. Find it by sweeping up until it glitches, then back off 10 %.
