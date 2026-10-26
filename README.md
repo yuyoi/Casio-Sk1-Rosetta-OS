@@ -35,6 +35,28 @@ Goal: get more sampling out of it, and replace the preset sounds with your own.
 3. **Slow clock while sampling.** A switch or pot on the clock (L1). Half clock = about 2.9 s at about 4.7 kHz; play it an octave down for the original pitch.
    - Swap the RAMs for 6264 SRAMs first: the 4168s need refreshing from the clock and may lose data when it's slow.
 
+## Your own sounds: `tools/sk1rom.py`
+
+**Proven on hardware:** one 3.2 s sound filling the whole ROM plays at full length (stock presets are 0.4-0.9 s).
+Sounds are 8-bit unsigned at 9387 Hz and end at an `FF FF` marker, so lengths are free.
+
+```bash
+python tools/sk1rom.py one-long sk1_lsi2.bin out.bin long.wav        # one 3.2 s sound on every preset
+python tools/sk1rom.py one-long sk1_lsi2.bin out.bin long.wav 2      # 6.4 s stored at double speed, play an octave down
+python tools/sk1rom.py slots    sk1_lsi2.bin out.bin a.wav b.wav ... # up to 8 sounds, equal share each
+```
+
+Any WAV works (any rate, bit depth, stereo). Needs `numpy` and `scipy`.
+- `out.bin`: 64 KB for a W27C512.
+- `out.sst.bin`: 512 KB for an SST39SF040 burned on the Hex Wizard ([esp32-maskrom-programmer](https://github.com/yuyoi/esp32-maskrom-programmer)): `python tools/burn.py out.sst.bin --burn`.
+
+### SST39SF040 (DIP-32) in the SK-1's 28-pin socket
+Seat the chip bottom-aligned: SST pins 3-30 go into socket pins 1-28, and SST pins 1, 2, 31 and 32 hang out past the top of the socket.
+- SST pin 32 (VCC) → jumper to SST pin 30. Pin 30 sits in socket pin 28 (5 V), so A17 is high: that's fine.
+- SST pin 31 (WE#) → 5 V (pin 32).
+- SST pins 1, 2, 3 (A18, A16, A15) → GND. Later, put them on a switch for 8 banks.
+- The `.sst.bin` repeats the image 16 times, so it plays whatever those pins do.
+
 ## Dump your own ROM
 
 The ROM is not included in this repo (Casio copyright). Read your own chip:
