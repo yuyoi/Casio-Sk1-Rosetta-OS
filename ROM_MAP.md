@@ -38,6 +38,28 @@ WAVs of each: `rom/wav/` (gitignored, Casio audio).
 - So a sound ends at FF FF, not at a fixed length; tone records didn't cut it. Envelope/"ring-mod" colour on some presets = tone records, not decoded yet.
 - Ready next: `rom/test_count_w27c512.bin` (spoken "one two three") for a cleaner check.
 
+## Pointer scan 2026-10-26
+- Searched the whole header for 16-bit pointers (LE/BE, with and without +0x8000) to every block start.
+- **Nothing points at the demo tracks (0x08BC / 0x0908 / 0x09E8), rhythms (0x04DC), tone records (0x0178), curves, chord table or the sample table (0x085C).** Those addresses are baked into the MSM6283's internal code. The ROM has no jump/call table we could redirect.
+- Demo = 3 tracks: 0x08BC (3-byte events, ends ~0x0905), 0x0908 (packed bytes, ends `F1 00 00` at 0x09E5), 0x09E8 (ends `F1 FF` at 0x0A62).
+- **Drums:** 0x085C entries 5-7 (0x0F80, 0x0B00, 0x0E00) are drum sounds, not presets, and 0x089E holds 3 more drum pointers (0x0C00, 0x0D00, 0x0D80). Drum sub-sounds end with FF FF at 0x0B00/0C00/0C80/0D00/0D80/0E00/0F00/0F80. The 5 melodic presets are table entries 0-4.
+- So the 8-slot images replace the drums too → rhythms play the new sounds. Keep 0x0B00-0x0FFF + entries 5-7 to keep the drum kit.
+
+## Decode pass 2 (2026-10-26, from spec page p3 + key matrix p7)
+- Spec: 5 PCM presets (piano, brass ensemble, trumpet, synth drums, human voice), 3 harmonic-synthesis presets (flute, pipe organ, jazz organ; 9 drawbar harmonics 16'..1', 14 levels each), 13 selectable envelopes, loop set, vibrato, portamento.
+- **0x0060-0x0077: 8 x 3-byte groups = one per preset** (00 20 BF, 00 20 AF, 04 00 CF, 08 00 EF, 10 00 BF, 10 00 BF, 10 00 CF, 10 00 EF), then 0x11. Meaning not known yet.
+- **0x03EC-0x0412: 13 x 3-byte groups = the 13 envelopes** (00 00 00, 74 00 00, 73 02 00, A4 00 20, ...). The first byte looks like two rate nibbles.
+- **0x037C: 56-step curve = 1 - e^(-0.0577 n)** (RC-style envelope curve). **0x02F8: 62-step curve** with the same k, starting at 0.36 (the upper part). Swapping these reshapes every envelope.
+- Stock end markers sit on even, 128-aligned addresses. Odd FF FF pairs inside sounds (0x2183) don't stop playback.
+- Loop theory: sounds without a marker run to 0x7FFF and the CPU jumps to table entry 8 (stock 0x7EB2). Probe 1 tests this.
+- Harmonic levels for flute/organs: not found in the ROM yet (may be inside the CPU).
+
+## Probes
+- `probe12_w27c512.bin`, lower half (pin 1 GND) = **probe 1**: entries 0-4 say one..five, drums stock, "five" runs into a saw to 0x7FFF with the loop start at 0x7E00 → hold the key: endless buzz = loops work.
+- Upper half (pin 1 5V) = **probe 2** = probe 1 plus:
+  - 0x060: all 8 preset groups = group 0. Do all presets now behave alike (envelope / vibrato / octave)?
+  - 0x3EC: all 13 envelopes = envelope 4. Sample something, then step Envelope Select: does every setting sound the same?
+
 ## Space
 - ROM is full. Cutting demo song + rhythms only frees ~1.3 KB = 0.14 s of sound.
 - Real space = the W27C512's second 32 KB (pin 1 switch) = a full second set.
