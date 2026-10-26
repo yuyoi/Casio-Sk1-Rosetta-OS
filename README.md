@@ -29,7 +29,7 @@ Goal: get more sampling out of it, and replace the preset sounds with your own.
 ## Mod routes
 
 1. **Custom presets.** Swap LSI2 for a 27C256-pinout EEPROM/EPROM (e.g. Winbond W27C257) and burn your own sounds in. Jumper the new chip's pin 1 (VPP) to pin 28 (5 V).
-   - Pin 22 (OE) looks tied to ground on the board; we're checking that. If it is, the swap is a drop-in.
+   - Pin 22 (OE) is tied to ground on the board through a wire-link jumper (checked on hardware), so the swap is a drop-in: no inverter needed. Keep that jumper in place.
    - With a W27C512 and a switch on pin 1: 2 preset banks.
 2. **Sample banks.** Replace each µPD4168 with an AS6C1008 (128 KB SRAM) on a 28-to-32-pin adapter, and put the extra address lines on a rotary switch. That's 16 banks, each a full 1.4 s sample + song.
 3. **Slow clock while sampling.** A switch or pot on the clock (L1). Half clock = about 2.9 s at about 4.7 kHz; play it an octave down for the original pitch.

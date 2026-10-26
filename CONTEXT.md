@@ -45,6 +45,7 @@
 - 0x0000-0x0A62 = small scattered blocks on aligned offsets with FF padding (biggest 832 B at 0x4DC). Looks like parameter / rhythm / demo tables, not CPU code (code would be one dense run). PCM from 0x0B00. → program almost certainly inside the MSM6283; one longer clean sample stays blocked. Not proven until a block is decoded.
 
 ## Winbond / EPROM in LSI2 (schematic p28 checked 2026-10-26)
+- **HW CHECK 2026-10-26: LSI2 pad 22 = GND via a wire-link jumper** (beeps to IC3 pin 7). Service manual fig 6 (A15 → OE) is wrong for this board. EPROM/Winbond = drop-in, only pin 1 (VPP) → pin 28. Everything below about inverting A15 is obsolete.
 - p28: LSI2 pin 1 = NC (no trace), pin 28 = VA, pin 20 /CE = CPU /CE (shared with both RAMs), pin 22 = separate line (A15 per fig 6).
 - /CE is shared, so the ROM must be gated by pin 22 = A15 (active-high OE on the mask), else it fights the RAMs on the bus. The T48 plain read still worked, so that's not 100 % settled: scope pin 22 vs /CE in circuit before building.
 - W27C257 / W27E257 (32 K) or W27C512 (64 K): pin 22 needs **inverted A15** (all 4 HC02 gates are used → add 74HC04 or 1 NPN inverter). W27C257 pin 1 (VPP) → VCC. W27C512 pin 1 = A15 → switch = 2 preset banks.
