@@ -12,6 +12,9 @@ Usage:
                                                          one long sound for every preset
                                                          (speed 2 = 6.4 s fits, play it an octave down)
   python sk1rom.py slots      BASE.bin OUT.bin a.wav ... up to 8 sounds, packed back to back
+  python sk1rom.py slots-switch BASE.bin OUT.bin a.wav ...
+                                                         same, chip half 1 normal, half 2 chained:
+                                                         W27C512 pin 1 (SST pin 3, A15) = wave-sequence switch
 
 OUT.bin is 64 KB (image twice) for a W27C512 with pin 1 tied either way.
 OUT.sst.bin is 512 KB (image x16) for an SST39SF040 burned on the Hex Wizard.
@@ -88,20 +91,30 @@ def fit(x, n, fade=0.03):
     return x
 
 
-def build(base, sounds, same_for_all=False):
+def build(base, sounds, same_for_all=False, chain=False):
     """Pack sounds back to back from PCM_START, each ended with FF FF, and point the table at them.
 
     With several sounds, each gets an equal share of the room.
+    chain=True leaves out the FF FF between sounds, so a preset plays on through
+    all the following slots (wave sequence); only the last one gets the marker.
     """
     rom = bytearray(base)
     rom[PCM_START:] = b"\x80" * (ROM_SIZE - PCM_START)
     room = ROM_SIZE - PCM_START
     if len(sounds) > 1:
         share = room // len(sounds) - len(END)
-        sounds = [fit(x, share) if len(x) > share else x for x in sounds]
+        sounds = [fit(x, share, 0.005 if chain else 0.03) if len(x) > share else x for x in sounds]
     addr, starts = PCM_START, []
-    for x in sounds:
+    for n, x in enumerate(sounds):
         pcm = to_pcm(x)
+        if chain and n < len(sounds) - 1:
+            # same footprint as a marked sound, but the 2 marker bytes stay audio
+            pcm += pcm[-1:] * len(END)
+            rom[addr:addr + len(pcm)] = pcm
+            starts.append(addr)
+            print(f"  slot {n}: 0x{addr:04X}, {len(pcm)} B = {len(pcm) / RATE:.2f} s (chained)")
+            addr += len(pcm)
+            continue
         free = ROM_SIZE - addr - len(END)
         if free <= 0:
             sys.exit(f"out of room: {room} bytes = {room / RATE:.2f} s total")
@@ -134,10 +147,18 @@ def main():
         rom = build(base, [load_wav(sys.argv[4], speed)], same_for_all=True)
     elif cmd == "slots":
         rom = build(base, [load_wav(p) for p in sys.argv[4:12]])
+    elif cmd == "slots-switch":
+        # half 1 = normal slots, half 2 = chained (wave sequence); the chip's top address pin is the on/off switch
+        sounds = [load_wav(p) for p in sys.argv[4:12]]
+        print("normal half:")
+        normal = build(base, sounds)
+        print("chained half:")
+        chained = build(base, sounds, chain=True)
+        rom = normal + chained
     else:
         sys.exit(__doc__)
     # .sst.bin = 512 KB for an SST39SF040 burned on the Hex Wizard (image x16, so any A15-A18 wiring works)
-    copies = 16 if out_path.endswith(".sst.bin") else 2
+    copies = (16 if out_path.endswith(".sst.bin") else 2) * len(base[:ROM_SIZE]) // len(rom)
     with open(out_path, "wb") as f:
         f.write(rom * copies)
     print(f"wrote {out_path} ({len(rom) * copies // 1024} KB, image x{copies})")
