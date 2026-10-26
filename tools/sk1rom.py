@@ -37,7 +37,11 @@ def load_wav(path, speed=1.0):
     """Any WAV -> float mono at RATE, peak-normalised to +-1.
 
     speed 2 stores the sound twice as fast: twice the length fits, play it an octave lower.
+    A path starting with "rev:" is stored backwards (reverse preset).
     """
+    reverse = path.startswith("rev:")
+    if reverse:
+        path = path[4:]
     with wave.open(path, "rb") as w:
         ch, width, rate, n = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
         raw = w.readframes(n)
@@ -58,6 +62,8 @@ def load_wav(path, speed=1.0):
         x = resample_poly(x, target, rate)
     peak = np.max(np.abs(x)) or 1.0
     x = x / peak
+    if reverse:
+        x = x[::-1]
     # skip leading silence: ROM space is too tight to waste on it
     loud = np.nonzero(np.abs(x) > 0.02)[0]
     return x[loud[0]:] if len(loud) else x
