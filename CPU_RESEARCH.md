@@ -7,6 +7,14 @@
 - Nick Price (2018) put an Arduino in place of the ROM: sound came out distorted because it was too slow. Real-world proof that ROM timing matters.
 - Pin hints (circuitbenders pin list): timer pins TIN/TC0/TC1/TOUT/ADCTR (unused on the SK-1), TEST (42), a second bus (aux D0-D7, CE2, C1/C2/OP) used for the SK-5 demo ROM and percussion chip. It looks like a general MCU core plus Casio sound hardware.
 
+## Service manual pin table (p6-7, read 2026-10-26)
+- Casio lists pins **33-39, 41-42 (incl. TEST), 44-56, 59, 62-66, 85, 87 as "No function"**. The test, timer and aux-bus pins are hidden in the SK-1 manual.
+- **KO9..KO0 = pins 67..76** (KO0 is pin 76), **KI1..KI8 = pins 77..84**, KO15 = pin 61 (filter control), PO1 = pin 86 (APO), PO3 = pin 88 (filter).
+- The sound out is per channel: SE-SH = pitch signal and EE-EH = envelope signal for melody/obbligato/chord/bass. **The envelopes are applied outside the chip** (transistors T12-T23 + 4066). SC (pin 97) = percussion out.
+- Negative logic: 0 V on VDD1, +5 V on the "GND" terminal.
+- No test mode is documented anywhere in the SK-1 service manual.
+- The SK-5 service manual exists (soundprogramming.net `/manuals/keyboard/Casio_SK-5_ServiceManual.pdf`), but a script download redirects to the homepage. Grab it from a browser. It may document the pins the SK-1 manual hides.
+
 ## In-circuit dump routes (no chip removal)
 | Route | Risk | Odds | Notes |
 |---|---|---|---|
