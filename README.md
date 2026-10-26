@@ -1,79 +1,100 @@
+<p align="center"><img src="assets/rosetta_boot.gif" width="560" alt="Rosetta OS boot animation"></p>
+
 # Casio SK-1 Rosetta OS
 
-Research and mods for the **Casio SK-1** (also sold as the Realistic Concertmate-500), the 1985 sampling keyboard.
+Own sounds in the **Casio SK-1** (also sold as the Realistic Concertmate-500), the 1985 sampling keyboard: replace its preset ROM with an EEPROM and fill it with your own sounds from WAVs, Roland S-770 CDs or Akai S1000 CDs.
 
-Goal: get more sampling out of it, and replace the preset sounds with your own.
+**Works on hardware:**
+- a Winbond W27C512 in the ROM socket, no other mods
+- one 3.2 s sound filling the whole ROM, played at full length (the stock presets are 0.4-0.9 s)
+- 5 custom presets (guitar, voices, synth, FX) built and burned
 
-**Status: research.** The ROM is dumped and the hardware is mapped. Nothing is built yet.
+## SK-1 Studio
 
-## What we found
+<p align="center"><img src="assets/sk1studio_screenshot.png" width="820" alt="SK-1 Studio"></p>
 
-- **RAM:** 2× NEC µPD4168C, 8 KB each, 16 KB total.
-- **Stock sample:** 13,568 bytes = 1.4 s, 8-bit at 9.387 kHz. That's 83% of the RAM.
-- **The rest of the RAM:** 2,816 bytes for memory-play / demo song data.
-- **CPU:** MSM6283-01GS. Its program is almost certainly inside the chip, so it can't be read or changed.
-- **External ROM (LSI2, NEC µPD23C256EAC-011):** data only.
-  - 0x0000–0x0A62: tables (presets / rhythms / demo, not decoded yet).
-  - From 0x0B00: preset PCM sounds. The start table is at 0x085C.
-- **So:** one longer clean sample is blocked (the length is set by the CPU's built-in program). More samples and custom presets are not.
+- **5 preset slots**, one per SK-1 PCM preset. Fill each from:
+  - a **WAV**
+  - a **Roland S-760/S-770 CD** image
+  - an **Akai S1000/S3000 CD** image (.iso / .nrg)
+- **Pitched to the slot:** type the sample's note (A4, C#3...) and it lands in tune on the same keys as the stock sound it replaces. `own` keeps its speed (FX, chords).
+- **Reverse** any slot.
+- **Loop** one slot: it goes last, runs to the end of the ROM and gets a crossfaded loop (see below).
+- **1 long sound** mode: one ~2.9 s sound on every preset.
+- **PLAY / PREVIEW ALL:** hear the slots exactly as the SK-1 will (8-bit, 9387 Hz) before burning.
+- **SAVE** a 64 KB image for a W27C512, or 512 KB for an SST39SF040 (Hex Wizard).
+- **BURN W27C512** straight to an XGecu T48 through minipro.
+- The stock **drum kit is kept**, so the rhythms still work.
 
-## Memory map (service manual p11–12)
-
-| CPU range | Chip | Use |
-|---|---|---|
-| 0x0000–0x1FFF | RAM2 (LSI3) | sample |
-| 0x2000–0x3FFF | RAM1 (LSI4) | 2.8 KB song memory + 5.4 KB sample |
-| 0x4000–0x7FFF | — | not decoded |
-| 0x8000–0xFFFF | ROM (LSI2) | 32 KB |
-
-## Mod routes
-
-1. **Custom presets.** Swap LSI2 for a 27C256-pinout EEPROM/EPROM (e.g. Winbond W27C257) and burn your own sounds in. Jumper the new chip's pin 1 (VPP) to pin 28 (5 V).
-   - Pin 22 (OE) is tied to ground on the board through a wire-link jumper (checked on hardware), so the swap is a drop-in: no inverter needed. Keep that jumper in place.
-   - With a W27C512 and a switch on pin 1: 2 preset banks.
-2. **Sample banks.** Replace each µPD4168 with an AS6C1008 (128 KB SRAM) on a 28-to-32-pin adapter, and put the extra address lines on a rotary switch. That's 16 banks, each a full 1.4 s sample + song.
-3. **Slow clock while sampling.** A switch or pot on the clock (L1). Half clock = about 2.9 s at about 4.7 kHz; play it an octave down for the original pitch.
-   - Swap the RAMs for 6264 SRAMs first: the 4168s need refreshing from the clock and may lose data when it's slow.
-
-## Your own sounds: `tools/sk1rom.py`
-
-**Proven on hardware:** one 3.2 s sound filling the whole ROM plays at full length (stock presets are 0.4-0.9 s).
-Sounds are 8-bit unsigned at 9387 Hz and end at an `FF FF` marker, so lengths are free.
+### Run it
 
 ```bash
-python tools/sk1rom.py one-long sk1_lsi2.bin out.bin long.wav        # one 3.2 s sound on every preset
-python tools/sk1rom.py one-long sk1_lsi2.bin out.bin long.wav 2      # 6.4 s stored at double speed, play an octave down
-python tools/sk1rom.py slots    sk1_lsi2.bin out.bin a.wav b.wav ... # up to 8 sounds, equal share each
+pip install numpy scipy
+pythonw tools/sk1studio.pyw
 ```
 
-Any WAV works (any rate, bit depth, stereo). Needs `numpy` and `scipy`.
-- `out.bin`: 64 KB for a W27C512.
-- `out.sst.bin`: 512 KB for an SST39SF040 burned on the Hex Wizard ([esp32-maskrom-programmer](https://github.com/yuyoi/esp32-maskrom-programmer)): `python tools/burn.py out.sst.bin --burn`.
+Windows (Python 3.10+). Set the paths once at the top: your own ROM dump, your Roland / Akai CD folders, `minipro.exe`. They're remembered in `~/.sk1studio.json`.
 
-### SST39SF040 (DIP-32) in the SK-1's 28-pin socket
-Seat the chip bottom-aligned: SST pins 3-30 go into socket pins 1-28, and SST pins 1, 2, 31 and 32 hang out past the top of the socket.
-- SST pin 32 (VCC) → jumper to SST pin 30. Pin 30 sits in socket pin 28 (5 V), so A17 is high: that's fine.
-- SST pin 31 (WE#) → 5 V (pin 32).
-- SST pins 1, 2, 3 (A18, A16, A15) → GND. Later, put them on a switch for 8 banks.
-- The `.sst.bin` repeats the image 16 times, so it plays whatever those pins do.
+## The hardware mod
+
+- Desolder LSI2 (the NEC D23C256EAC-011, right next to the two D4168C RAMs) and fit a 28-pin socket.
+- **W27C512:** jumper its pin 1 to GND or 5 V. The images hold the same ROM twice, so either works.
+- **W27C256-style 32 KB chip:** jumper pin 1 (VPP) to pin 28 (5 V).
+- Pin 22 (OE) is already wired to ground on the board (a wire link), so it's a drop-in.
+- Never program the W27C512 in the socket: it needs 12-14 V on pin 22, and that pin is grounded on the board.
+
+### SST39SF040 (DIP-32, Hex Wizard) in the 28-pin socket
+Seat it bottom-aligned: SST pins 3-30 go into socket pins 1-28, and pins 1, 2, 31, 32 hang out past the socket.
+- SST pin 32 (VCC) → pin 30. Pin 30 sits on socket pin 28 (5 V), so A17 is high, which is fine.
+- SST pin 31 (WE#) → 5 V.
+- SST pins 1, 2, 3 (A18, A16, A15) → GND, or a switch for banks.
 
 ## Dump your own ROM
 
-The ROM is not included in this repo (Casio copyright). Read your own chip:
+The ROM is Casio's code and isn't included. Read your own chip:
 
-- Programmer: XGecu T48 (or a TL866) set to 27C256, read only:
-  `minipro -p "AM27C256@DIP28" -x -r sk1_lsi2.bin`
-- A good dump has CRC32 `d615963c` and SHA1 `0dbf2d1c4c776f1a1c35dd2be4d6ca03882afd4c`.
-- No adapter needed: a plain read works.
+```bash
+minipro -p "AM27C256@DIP28" -x -r sk1_lsi2.bin
+```
+
+A good dump has CRC32 `d615963c` (SHA1 `0dbf2d1c4c776f1a1c35dd2be4d6ca03882afd4c`). A plain 27C256 read works; no adapter needed.
+
+## What we know about the SK-1
+
+- **CPU:** MSM6283-01GS, an OKI-made Casio custom. Its program lives inside the chip. The external ROM is **only data**: tables + sounds, no CPU code (checked byte by byte, see [ROM_MAP.md](ROM_MAP.md)).
+- **ROM layout:**
+  - 0x0000-0x0AFF: tone records, envelope curves, the 13 envelopes, rhythms, demo song, the sample table (0x085C)
+  - 0x0B00-0x0FFF: the drum kit
+  - 0x1000-0x7FFF: the 5 PCM presets
+- **Sounds:** 8-bit unsigned, 9387 Hz. A sound plays until an `FF FF` marker on an even address, so lengths are free.
+- **Loops:** sounds without a marker run to 0x7FFF; table entry 8 (stock 0x7EB2) looks like the loop start. **Not confirmed on hardware yet.**
+- **Slot order:** which preset button reads which table entry is a best guess from the stock sounds, not confirmed yet.
+- **Sampling:** the SK-1's own sampler stays at 1.4 s. That limit is in the CPU. A slower clock gives longer, lo-fi samples; see [CLOCK_MOD.md](CLOCK_MOD.md).
+- **Bus timing:** the sister model's service manual shows the CPU waits about 410 ns for memory data at the SK-1's clock, so any 200 ns or faster ROM/RAM is fine. See [CPU_RESEARCH.md](CPU_RESEARCH.md).
+
+## Command-line tools
+
+| Tool | Does |
+|---|---|
+| `tools/sk1studio.pyw` | the GUI |
+| `tools/sk1rom.py` | WAV → ROM from the command line: `one-long`, `slots`, `slots-switch`, `rev:` prefix to reverse |
+| `tools/roland_presets.py` | the 5-preset Roland/WAV build used on hardware |
+| `tools/probe1.py`, `probe5.py` | probe ROMs: button map + loop test, sample-pointer test |
+| `tools/roland.py`, `tools/akai.py` | Roland S-7xx / Akai S1000 CD readers (from U110 RomHex Studio) |
 
 ## Docs
 
-- Service manual and user manual: [polynominal.com/casio-sk-1](https://www.polynominal.com/casio-sk-1/index.html)
-- Detailed notes: [CONTEXT.md](CONTEXT.md)
+- [ROM_MAP.md](ROM_MAP.md): the ROM, byte by byte
+- [CPU_RESEARCH.md](CPU_RESEARCH.md): what's known about the MSM6283, from both service manuals
+- [CLOCK_MOD.md](CLOCK_MOD.md): faster / slower clock
+- [CONTEXT.md](CONTEXT.md): memory map, pinouts, early notes
+- SK-1 service manual + user manual: [polynominal.com/casio-sk-1](https://www.polynominal.com/casio-sk-1/index.html)
 
 ## Credits
 
-- yuyoi: hardware, dumping, testing
-- MAME `sk1.cpp` (Vas Crabb): ROM layout and hashes
+- **yuyoi:** hardware, dumping, testing, sound picks
+- MAME `sk1.cpp` (Vas Crabb): ROM hashes
 - circuitbenders.co.uk forum: MSM6283 pin list
+- Jonas Karlsson: SK-1 octave clock mod
+- Roland / Akai CD readers from [U110 RomHex Studio](https://github.com/yuyoi/u110-romhex-studio)
 - Built with Claude Code

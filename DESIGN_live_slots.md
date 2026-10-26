@@ -1,6 +1,6 @@
 # Live slots: record on the SK-1, push into a ROM slot, wave-sequence (plan 2026-10-26)
 
-**PARKED 2026-10-26: user: "annoying build, no thanks". Don't push it again unless they bring it up.**
+**Parked 2026-10-26.**
 
 ## Idea (user's)
 Sample with the SK-1's own record button, then the sound gets pushed into one of the 8 preset slots, and slots can be chained or sequenced.
