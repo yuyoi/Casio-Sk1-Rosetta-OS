@@ -1,8 +1,10 @@
 <p align="center"><img src="assets/rosetta_boot.gif" width="560" alt="Rosetta OS boot animation"></p>
 
-# Casio SK-1 Rosetta OS
+# Casio SK-1 Rosetta OS: the Casio SK-1 mod (custom sample ROM + SK-1 Studio)
 
-Own sounds in the **Casio SK-1** (also sold as the Realistic Concertmate-500), the 1985 sampling keyboard: replace its preset ROM with an EEPROM and fill it with your own sounds from WAVs, Roland S-770 CDs or Akai S1000 CDs.
+**Casio SK-1 / SK1 mod**, also for the Radio Shack Realistic Concertmate-500. Website: **[yuyoi.github.io/Casio-Sk1-Rosetta-OS](https://yuyoi.github.io/Casio-Sk1-Rosetta-OS/)**
+
+Own sounds in the **Casio SK-1**, the 1985 sampling keyboard: replace its preset ROM with an EEPROM and fill it with your own sounds from WAVs, Roland S-770 CDs or Akai S1000 CDs.
 
 **Works on hardware:**
 - a Winbond W27C512 in the ROM socket, no other mods

@@ -1,6 +1,8 @@
 # Casio copyright: keep dumps and manuals local
 rom/
-docs/
+docs/*
+!docs/index.html
+!docs/img/
 *.bin
 *.pdf
 *.wav
