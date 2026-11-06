@@ -3,18 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Casio SK-1 Mod: custom sample ROM + SK-1 Studio (Rosetta)</title>
-<meta name="description" content="Casio SK-1 (SK1, Realistic Concertmate-500) mod: swap the preset ROM for a W27C512 EEPROM and load your own sounds from WAVs, Akai S1000 or Roland S-770 sample CDs. 3-second presets and custom loop points. Tested on real hardware, free and open source.">
-<meta name="keywords" content="Casio SK-1, SK1, SK-1 mod, Casio SK-1 mod, SK-1 ROM, SK-1 custom samples, Realistic Concertmate-500, Casio sampling keyboard, W27C512, ROM mod">
+<title>Casio SK-1 (SK1) Mod: custom sample ROM + SK-1 Studio | Rosetta</title>
+<meta name="description" content="Casio SK-1 / SK1 mod: swap the preset ROM for a W27C512 EEPROM and load your own sounds from WAVs, Akai S1000 or Roland S-770 sample CDs. 3-second presets and custom loop points. Tested on a real SK-1, free and open source.">
+<meta name="keywords" content="Casio SK-1, SK1, SK-1 mod, SK1 mod, Casio SK-1 mod, Casio SK1 mod, SK-1 ROM, SK-1 custom samples, SK-1 preset sounds, Realistic Concertmate-500, Concertmate 500 mod, Casio sampling keyboard, W27C512, ROM mod">
+<link rel="icon" type="image/png" href="img/hexgirl_icon.png">
 <link rel="canonical" href="https://yuyoi.github.io/Casio-Sk1-Rosetta-OS/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Casio SK-1 Mod: your own sounds in the preset ROM">
+<meta property="og:title" content="Casio SK-1 (SK1) Mod: your own sounds in the preset ROM">
 <meta property="og:description" content="Swap the SK-1's preset ROM for an EEPROM and load your own sounds: WAVs, Akai and Roland sample CDs, 3-second presets, custom loops. Tested on real hardware.">
 <meta property="og:url" content="https://yuyoi.github.io/Casio-Sk1-Rosetta-OS/">
 <meta property="og:image" content="https://yuyoi.github.io/Casio-Sk1-Rosetta-OS/img/sk1studio_screenshot.png">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"SK-1 Studio (Casio SK-1 Rosetta OS)","applicationCategory":"MultimediaApplication","operatingSystem":"Windows, Python 3.10+","description":"Custom sample ROM mod and ROM builder for the Casio SK-1 sampling keyboard.","url":"https://yuyoi.github.io/Casio-Sk1-Rosetta-OS/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can you change the preset sounds on a Casio SK-1?","acceptedAnswer":{"@type":"Answer","text":"Yes. The SK-1's sampled presets sit in a 32 KB ROM chip (LSI2, an NEC uPD23C256). Swap it for a Winbond W27C512 EEPROM holding your own sounds, built in SK-1 Studio. Tested on a real SK-1."}},
+{"@type":"Question","name":"How long can a sound be in the Casio SK-1 ROM?","acceptedAnswer":{"@type":"Answer","text":"One sound can fill the whole ROM: 3.2 seconds at the SK-1's own 8-bit, 9.4 kHz. Five sounds share that space, about 0.6 s each, and one of them can loop. The stock presets are 0.4 to 0.9 s."}},
+{"@type":"Question","name":"Can the Casio SK-1 record samples longer than 1.4 seconds?","acceptedAnswer":{"@type":"Answer","text":"Not with this mod: the 1.4-second limit of the SK-1's own sampler is set inside its CPU. A slower clock gives longer, lo-fi samples."}},
+{"@type":"Question","name":"Do loops work on the modded SK-1?","acceptedAnswer":{"@type":"Answer","text":"Yes, tested on a real SK-1: one preset can loop, so a held key sustains instead of stopping. SK-1 Studio's loop editor sets the loop start, end and crossfade."}},
+{"@type":"Question","name":"What do I need for the Casio SK-1 ROM mod?","acceptedAnswer":{"@type":"Answer","text":"A 28-pin socket, a W27C512 (or another 27C256-pinout EEPROM or EPROM), a programmer such as the XGecu T48, a desoldering tool for the old ROM, and a Windows PC with Python for SK-1 Studio."}},
+{"@type":"Question","name":"Does the SK-1 mod work on the Realistic Concertmate-500?","acceptedAnswer":{"@type":"Answer","text":"The Concertmate-500 is Radio Shack's version of the SK-1 and its service manual describes the same board. It should work the same way, but it hasn't been tried on one yet."}}
+]}
 </script>
 <style>
 :root{--bg:#f6f6f3;--paper:#fff;--fg:#17181a;--muted:#5c5f63;--rule:#d6d7d2;--bar:#17181a;--bar-fg:#f6f6f3;--accent:#d2461e;--term:#05080c;--term-ink:#39ff88}
@@ -30,6 +41,7 @@ h1{font-size:2rem;line-height:1.2;margin:16px 0 8px}
 .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:24px 0 8px}
 .btn{display:inline-block;padding:12px 18px;border-radius:6px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700}
 .btn.alt{background:transparent;color:var(--fg);border:2px solid var(--fg)}
+h3{font-size:1.05rem;margin:20px 0 4px}
 h2{background:var(--bar);color:var(--bar-fg);font-size:1rem;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;margin:40px 0 16px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
 .card{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
@@ -48,7 +60,7 @@ a{color:var(--accent)}
 <div class="wrap">
 <header>
 <img class="hero" src="img/hexgirl_icon.png" alt="Rosetta: Hex Girl badge">
-<h1>Casio SK-1 Mod: your own sounds in the preset ROM</h1>
+<h1>Casio SK-1 (SK1) Mod: your own sounds in the preset ROM</h1>
 <p class="lede">Swap the preset ROM of the Casio SK-1 (SK1, also sold as the Realistic Concertmate-500) for an EEPROM and fill it with your own sounds. Free, open source, and tested on a real SK-1.</p>
 <div class="term">ROSETTA OS  //  SK-1 STUDIO</div>
 <div class="cta">
@@ -86,6 +98,22 @@ a{color:var(--accent)}
 <li>Fit the W27C512 and play.</li>
 </ol>
 <p>The SK-1's own sampler stays as it is (1.4 s at 9.4 kHz). The mod adds custom samples in the preset ROM. For longer self-recorded samples there are notes on a <a href="https://github.com/yuyoi/Casio-Sk1-Rosetta-OS/blob/main/CLOCK_MOD.md">clock mod</a>.</p>
+
+<h2>SK-1 mod FAQ</h2>
+<h3>Can you change the preset sounds on a Casio SK-1?</h3>
+<p>Yes. The SK-1's sampled presets sit in a 32 KB ROM chip (LSI2, an NEC µPD23C256). Swap it for a Winbond W27C512 EEPROM holding your own sounds, built in SK-1 Studio. Tested on a real SK-1.</p>
+<h3>How long can a sound be?</h3>
+<p>One sound can fill the whole ROM: 3.2 seconds at the SK-1's own 8-bit, 9.4 kHz. Five sounds share that space, so each is around 0.6 s, and one of them can loop. The stock presets are 0.4 to 0.9 s.</p>
+<h3>Can the SK-1 record samples longer than 1.4 seconds?</h3>
+<p>Not with this mod: the 1.4-second limit of the SK-1's own sampler is set inside its CPU. A slower clock gives longer, lo-fi samples; see the <a href="https://github.com/yuyoi/Casio-Sk1-Rosetta-OS/blob/main/CLOCK_MOD.md">clock mod notes</a>.</p>
+<h3>Do loops work?</h3>
+<p>Yes, tested on a real SK-1: one preset can loop, so a held key sustains instead of stopping. SK-1 Studio's loop editor sets the loop start, end and crossfade.</p>
+<h3>What do I need?</h3>
+<p>A 28-pin socket, a W27C512 (or another 27C256-pinout EEPROM or EPROM), a programmer such as the XGecu T48, a desoldering tool for the old ROM, and a Windows PC with Python for SK-1 Studio.</p>
+<h3>Does it work on the Realistic Concertmate-500?</h3>
+<p>The Concertmate-500 is Radio Shack's version of the SK-1, and its service manual describes the same board. It should work the same way, but it hasn't been tried on one yet.</p>
+<h3>Is Casio's ROM included?</h3>
+<p>No. You read your own chip and SK-1 Studio builds on that dump. A good SK-1 dump has CRC32 <code>d615963c</code>.</p>
 
 <h2>Community</h2>
 <p>Questions, hardware reports and ideas: <a href="https://discord.gg/R3CQkFdRtf">join the Discord</a>. More Rosetta OS mods: <a href="https://yuyoi.github.io/D110-rosetta-OS-v11/">Roland D-110</a>, <a href="https://github.com/yuyoi/Sp-808-rosetta-looper-OS-">SP-808</a>, <a href="https://github.com/yuyoi/Akai-S2000-Rosetta-OS">Akai S2000</a>, <a href="https://github.com/yuyoi/super-Gp-16-Rosetta-OS">GP-16</a>, <a href="https://github.com/yuyoi/u110-romhex-studio">U-110</a>.</p>

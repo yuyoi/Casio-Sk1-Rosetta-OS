@@ -2,6 +2,7 @@
 rom/
 docs/*
 !docs/index.html
+!docs/sitemap.xml
 !docs/img/
 *.bin
 *.pdf
